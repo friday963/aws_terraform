@@ -1,0 +1,6 @@
+creds/
+two_layer_web/.terraform
+*.tfstate
+*.tfstate.backup
+*.lock.hcl
+s3_static_website/.terraform

@@ -5,43 +5,29 @@ resource "aws_vpc" "two_layer_vpc" {
   }
 }
 
-resource "aws_subnet" "private_db_subnet1" {
-    vpc_id = aws_vpc.two_layer_vpc.id
-    cidr_block = "10.0.0.0/24"
-    tags = {
-      "Name" = "private_db_subnet1",
-      "subnet_type" = "private"
-    }
-    availability_zone = "us-east-1a"
+resource "aws_subnet" "private_db_subnet" {
+  for_each = var.private_subnets
+  vpc_id = aws_vpc.two_layer_vpc.id
+  cidr_block = each.value.cidr_block
+  availability_zone = each.value.availability_zone
+  tags = {
+    "Name" = each.value.description
+  }
 }
 
-resource "aws_subnet" "public_web_subnet1" {
-  vpc_id = aws_vpc.two_layer_vpc.id
-    cidr_block = "10.0.1.0/24"
-    tags = {
-      "Name" = "public_web_subnet1",
-      "subnet_type" = "public"
-    }
-    availability_zone = "us-east-1a"
-}
-resource "aws_subnet" "private_db_subnet2" {
+resource "aws_subnet" "public_web_subnet" {
+    for_each = var.public_subnets
     vpc_id = aws_vpc.two_layer_vpc.id
-    cidr_block = "10.0.2.0/24"
+    cidr_block = each.value.cidr_block
+    availability_zone = each.value.availability_zone 
     tags = {
-      "Name" = "private_db_subnet2",
-      "subnet_type" = "private"
+      "Name" = each.value.description
     }
-    availability_zone = "us-east-1b"
 }
 
-resource "aws_subnet" "public_web_subnet2" {
-  vpc_id = aws_vpc.two_layer_vpc.id
-    cidr_block = "10.0.3.0/24"
-    tags = {
-      "Name" = "public_web_subnet2",
-      "subnet_type" = "public"
-    }
-    availability_zone = "us-east-1b"
+resource "aws_db_subnet_group" "db_subnet" {
+  name = "db_subnet"
+  subnet_ids = [for subnet in aws_subnet.private_db_subnet: subnet.id]
 }
 
 resource "aws_internet_gateway" "web_igw" {
@@ -54,8 +40,12 @@ resource "aws_internet_gateway" "web_igw" {
 resource "aws_lb" "application_lb" {
   name = "web-application-load-balancer"
   internal = false
-#   subnets = [for subnet in aws_subnet.subnet_type.public : subnet.id]
-  subnets = [aws_subnet.public_web_subnet1.id, aws_subnet.public_web_subnet2.id]
+  subnets = [for subnet in aws_subnet.public_web_subnet : subnet.id]
   load_balancer_type = "application"
+  # access_logs {
+  #   bucket = aws_s3_bucket.alb_access_logs.bucket
+  #   prefix = "alb_logs"
+  #   enabled = true
+  # }
   
 }
