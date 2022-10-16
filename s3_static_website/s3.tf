@@ -1,5 +1,5 @@
 resource "aws_s3_bucket_website_configuration" "static_web" {
-  bucket = aws_s3_bucket.webbucket.bucket
+  bucket = aws_s3_bucket.webbucket.id
   
 
   index_document {
@@ -18,6 +18,39 @@ resource "aws_s3_bucket_website_configuration" "static_web" {
 #       replace_key_prefix_with = "documents/"
 #     }
 #   }
+}
+
+resource "aws_s3_bucket_acl" "site" {
+  bucket = aws_s3_bucket.webbucket.id
+  acl = "public-read"
+}
+
+resource "aws_s3_bucket_policy" "site" {
+  bucket = aws_s3_bucket.webbucket.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "PublicReadGetObject"
+        Effect = "Allow"
+        Principal = "*"
+        Action = "s3:GetObject"
+        Resource = [
+          aws_s3_bucket.webbucket.arn,
+          "${aws_s3_bucket.webbucket.arn}/*",
+        ]
+      },
+    ]
+  })
+}
+
+resource "aws_s3_object" "webpages" {
+  for_each = fileset("web_page_content/", "*")
+  bucket = aws_s3_bucket.webbucket.id
+  key = each.value
+  source = "web_page_content/${each.value}"
+  etag = filemd5("web_page_content/${each.value}")
+  content_type = "text/html"
 }
 
 resource "aws_s3_account_public_access_block" "block_pub" {
